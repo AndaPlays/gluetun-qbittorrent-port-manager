@@ -157,12 +157,12 @@ update_port() {
       echo "Port check successful."
     else
       echo "Port check failed."
-      if [ "$VPNMODE" = "OPENVPN" ]; then
-        echo "VPNMODE is OPENVPN. Restarting VPN connection..."
+      if [ "$VPNMODE" = "OPENVPN" ] || [ "$VPNMODE" = "WIREGUARD" ]; then
+        echo "VPNMODE is $VPNMODE. Restarting VPN connection..."
         change_vpn_status "stopped"
         change_vpn_status "running"
-      elif [ "$VPNMODE" = "WIREGUARD" ]; then
-        echo "VPNMODE is WIREGUARD. Shutting down qBittorrent due to closed TCP port..."
+      elif [ "$VPNMODE" = "STOP" ]; then
+        echo "VPNMODE is STOP. Shutting down qBittorrent due to closed TCP port..."
         shutdown_qbittorrent
       else
         echo "Unknown VPNMODE: $VPNMODE. No action taken."
