@@ -65,6 +65,8 @@ environment:
   # Control Server settings
   # The Control Server is assumed to be available at hostname "gluetun" on port 8000 within the Docker network.
   CONTROL_SERVER_URL: http://gluetun:8000
+  # Optional API key for Gluetun Control Server
+  #CONTROL_SERVER_APIKEY: key
 
   # VPN Mode settings
   # Options: OPENVPN, WIREGUARD, or DUMPMODE
