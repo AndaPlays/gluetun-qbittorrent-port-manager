@@ -22,6 +22,8 @@ services:
       # The Gluetun Control Server is assumed to be accessible within the Docker network
       # under the hostname "localhost" on port 8000.
       CONTROL_SERVER_URL: http://localhost:8000
+      # Optional API key for Gluetun Control Server
+      #CONTROL_SERVER_APIKEY: key
       
       # VPN Mode settings:
       # Options: OPENVPN, WIREGUARD, or DUMPMODE

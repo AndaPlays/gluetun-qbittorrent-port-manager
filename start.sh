@@ -1,6 +1,7 @@
 #!/bin/bash
 
 CONTROL_SERVER_URL="${CONTROL_SERVER_URL:-http://localhost:8000}"
+CONTROL_SERVER_APIKEY="${CONTROL_SERVER_APIKEY:+"--header X-API-KEY:${CONTROL_SERVER_APIKEY}"}"
 CHECK_INTERVAL="${CHECK_INTERVAL:-30}"
 HTTP_S="${HTTP_S:-http}"
 VPNMODE="${VPNMODE:-OPENVPN}"
@@ -22,7 +23,7 @@ wait_for_vpn_status() {
 
   echo "Waiting for VPN status to become '$desired_status'..."
   while [ "$elapsed" -lt "$timeout" ]; do
-    current_status=$(curl -s "$CONTROL_SERVER_URL/v1/openvpn/status" | jq -r '.status')
+    current_status=$(curl ${CONTROL_SERVER_APIKEY} -s "$CONTROL_SERVER_URL/v1/vpn/status" | jq -r '.status')
     echo "Current VPN status: $current_status"
     if [ "$current_status" = "$desired_status" ]; then
       echo "VPN status is now '$desired_status'"
@@ -38,8 +39,8 @@ wait_for_vpn_status() {
 change_vpn_status() {
   local status="$1"
   echo "Setting VPN status to '$status'..."
-  response=$(curl -s -X PUT -H "Content-Type: application/json" \
-    -d "{\"status\":\"$status\"}" "$CONTROL_SERVER_URL/v1/openvpn/status")
+  response=$(curl ${CONTROL_SERVER_APIKEY} -s -X PUT -H "Content-Type: application/json" \
+    -d "{\"status\":\"$status\"}" "$CONTROL_SERVER_URL/v1/vpn/status")
   echo "Response from VPN status change: $response"
   wait_for_vpn_status "$status"
 }
@@ -94,7 +95,7 @@ shutdown_qbittorrent() {
 
 update_port() {
   echo "Retrieving forwarded port from Control Server..."
-  NEW_PORT=$(curl -s "$CONTROL_SERVER_URL/v1/openvpn/portforwarded" | jq -r '.port')
+  NEW_PORT=$(curl ${CONTROL_SERVER_APIKEY} -s "$CONTROL_SERVER_URL/v1/portforward" | jq -r '.port')
   if [ -z "$NEW_PORT" ] || [ "$NEW_PORT" = "null" ]; then
     echo "Error retrieving forwarded port from Control Server"
     return 1
@@ -147,7 +148,7 @@ update_port() {
   fi
 
   echo "Retrieving current VPN public IP from Control Server..."
-  PUBLIC_IP=$(curl -s "$CONTROL_SERVER_URL/v1/publicip/ip" | jq -r '.public_ip')
+  PUBLIC_IP=$(curl ${CONTROL_SERVER_APIKEY} -s "$CONTROL_SERVER_URL/v1/publicip/ip" | jq -r '.public_ip')
   if [ -z "$PUBLIC_IP" ] || [ "$PUBLIC_IP" = "null" ]; then
     echo "Error retrieving public IP from Control Server"
   else
