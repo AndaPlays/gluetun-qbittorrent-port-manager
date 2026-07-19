@@ -192,12 +192,14 @@ qbittorrent_login() {
     return 1
   fi
 
-  if [ "$http_code" -ne 200 ]; then
+  if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 204 ]; then
     echo "qBittorrent login failed with HTTP $http_code." >&2
     return 1
   fi
 
-  if [ "$response" != "Ok." ] && [ "$response" != "Ok" ]; then
+  # qBittorrent 5.2+ returns 204 for successful WebAPI calls without a body.
+  # The following preferences request verifies that the session is authorized.
+  if [ "$http_code" -eq 200 ] && [ "$response" != "Ok." ] && [ "$response" != "Ok" ]; then
     echo "qBittorrent login failed: invalid username or password." >&2
     return 1
   fi
@@ -223,13 +225,24 @@ set_qbittorrent_listen_port() {
 get_forwarded_port() {
   local response=""
   local port=""
+  local attempt=1
+  local delay="$CONTROL_SERVER_RETRY_DELAY"
 
-  response=$(control_server_request "/v1/portforward") || return 1
-  port=$(echo "$response" | jq -r '.port // empty' 2>/dev/null)
-  if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; then
-    echo "$port"
-    return 0
-  fi
+  while [ "$attempt" -le "$CONTROL_SERVER_RETRIES" ]; do
+    response=$(control_server_request "/v1/portforward") || return 1
+    port=$(echo "$response" | jq -r '.port // empty' 2>/dev/null)
+    if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; then
+      echo "$port"
+      return 0
+    fi
+
+    if [ "$attempt" -lt "$CONTROL_SERVER_RETRIES" ]; then
+      echo "Control Server has no valid forwarded port yet ('$port'). Retrying in ${delay}s..." >&2
+      sleep "$delay"
+      delay=$((delay * 2))
+    fi
+    attempt=$((attempt + 1))
+  done
 
   echo "Control Server returned an invalid forwarded port: '$port'." >&2
   return 1

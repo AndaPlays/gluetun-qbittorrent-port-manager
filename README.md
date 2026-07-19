@@ -17,7 +17,7 @@ You must integrate the provided `docker-compose.yml` configuration into your exi
 
 The Docker image includes a `HEALTHCHECK` that validates Control Server reachability using your configured authentication mode.
 
-qBittorrent WebUI access follows the v5.0 API requirements: login and mutations use POST, preferences use GET, authentication uses the SID cookie, and every request sends a matching `Referer` header for CSRF/Host validation.
+qBittorrent WebUI access follows the v5.0+ API requirements: login and mutations use POST, preferences use GET, authentication uses the SID cookie, and every request sends a matching `Referer` header for CSRF/Host validation. Login accepts both the traditional `200 OK` response and qBittorrent 5.2+'s `204 No Content`; the following authenticated preferences request verifies access.
 
 ## Manual Test
 Before using this script, ensure that qBittorrent is properly connected to the forwarded port. You can confirm this if you see a green globe icon at the bottom of the qBittorrent WebUI.
