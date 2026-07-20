@@ -30,7 +30,7 @@ Mount Gluetun's data directory, for example:
 
 ```yaml
 volumes:
-  - /docker/gluetunvpn:/gluetun
+  - /docker/gluetun:/gluetun
 ```
 
 Generate a suitable API key:
@@ -39,7 +39,7 @@ Generate a suitable API key:
 docker run --rm qmcgaw/gluetun genkey
 ```
 
-Create `/docker/gluetunvpn/auth/config.toml` with the generated key:
+Create `/docker/gluetun/auth/config.toml` with the generated key:
 
 ```toml
 [[roles]]
@@ -108,3 +108,71 @@ This flexibility allows users to choose the behavior that best fits their VPN co
 ## WireGuard note
 
 Gluetun now exposes protocol-agnostic VPN status routes (`/v1/vpn/status`) for OpenVPN and WireGuard. This script uses those routes for restart handling.
+
+## Complete Docker Compose example (ProtonVPN + WireGuard)
+
+The following example uses ProtonVPN with WireGuard and port forwarding. Define `PROTON_WIREGUARD_PRIVATE_KEY`, `QBITTORRENT_USER`, and `QBITTORRENT_PASSWORD` as stack environment variables in Portainer or in a `.env` file. Do not commit their real values.
+
+```yaml
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8888:8888/tcp" # HTTP proxy
+      - "8388:8388/tcp" # Shadowsocks
+      - "8388:8388/udp" # Shadowsocks
+      - "8090:8090"     # qBittorrent WebUI
+    volumes:
+      - /docker/gluetun:/gluetun
+    environment:
+      HTTP_CONTROL_SERVER_LOG: "on"
+
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
+
+      TZ: Europe/Berlin
+      UPDATER_PERIOD: 24h
+      SERVER_COUNTRIES: Germany,Switzerland,Netherlands,France,Belgium,Italy
+      PORT_FORWARD_ONLY: "on"
+      VPN_PORT_FORWARDING: "on"
+      VPN_PORT_FORWARDING_PROVIDER: protonvpn
+      VERSION_INFORMATION: "on"
+
+  gluetun-qbittorrent-port-manager:
+    image: andaplays/gluetun-qbittorrent-port-manager:dev
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    volumes:
+      - /docker/gluetun/auth/portmanager-api-key:/run/secrets/gluetun_control_server_api_key:ro
+    environment:
+      QBITTORRENT_SERVER: localhost
+      QBITTORRENT_PORT: "8090"
+      QBITTORRENT_USER: ${QBITTORRENT_USER}
+      QBITTORRENT_PASS: ${QBITTORRENT_PASSWORD}
+      HTTP_S: http
+
+      CHECK_INTERVAL: "30"
+      WAIT_TIMEOUT: "60"
+      WAIT_INTERVAL: "5"
+
+      CONTROL_SERVER_URL: http://localhost:8000
+      CONTROL_SERVER_AUTH_MODE: apikey
+      CONTROL_SERVER_API_KEY_FILE: /run/secrets/gluetun_control_server_api_key
+      CONTROL_SERVER_TIMEOUT: "15"
+      CONTROL_SERVER_RETRIES: "3"
+      CONTROL_SERVER_RETRY_DELAY: "2"
+
+      QBITTORRENT_TIMEOUT: "15"
+      VPNMODE: SMARTMODE
+```
+
+This layout does not publish Gluetun's Control Server port `8000` to the host. The port manager shares Gluetun's network namespace and therefore reaches both the Control Server and qBittorrent through `localhost`. qBittorrent must also use Gluetun's network namespace (`network_mode: "service:gluetun"` in the same Compose project or `network_mode: "container:gluetun"` when managed separately).
+
+The host file `/docker/gluetun/auth/portmanager-api-key` must contain only the API key configured in `/docker/gluetun/auth/config.toml`.
