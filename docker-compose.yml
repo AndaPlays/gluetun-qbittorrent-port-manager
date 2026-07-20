@@ -2,9 +2,8 @@ services:
   gluetun-qbittorrent-port-manager:
     image: andaplays/gluetun-qbittorrent-port-manager:latest
     restart: unless-stopped
-    # Adjust the host path as needed for your environment.
-    volumes:
-      - /path/on/your/host:/tmp/gluetun
+    secrets:
+      - gluetun_control_server_api_key
     environment:
       # qBittorrent connection details
       QBITTORRENT_SERVER: "your-qbittorrent-server-ip"   # Replace with your qBittorrent server's IP address
@@ -17,12 +16,24 @@ services:
       CHECK_INTERVAL: 120                               # Update interval in seconds (e.g., 120 seconds)
       WAIT_TIMEOUT: 60                                  # Timeout (in seconds) for waiting on VPN status changes
       WAIT_INTERVAL: 5                                  # Interval (in seconds) between VPN status checks
+      CONTROL_SERVER_TIMEOUT: 15                        # HTTP timeout for Control Server requests
+      CONTROL_SERVER_RETRIES: 3                         # Retries for Control Server requests
+      CONTROL_SERVER_RETRY_DELAY: 2                     # Initial retry delay (seconds), exponential backoff
+      QBITTORRENT_TIMEOUT: 15                           # HTTP timeout for qBittorrent API requests
       
       # Control Server settings
-      # The Gluetun Control Server is assumed to be accessible within the Docker network
-      # under the hostname "localhost" on port 8000.
-      CONTROL_SERVER_URL: http://localhost:8000
+      # Both services must share a Docker network; "gluetun" is the Gluetun service name.
+      CONTROL_SERVER_URL: http://gluetun:8000
+      # Auth mode: none, apikey, or basic
+      CONTROL_SERVER_AUTH_MODE: apikey
+      # Must contain the same key configured in Gluetun's /gluetun/auth/config.toml.
+      CONTROL_SERVER_API_KEY_FILE: /run/secrets/gluetun_control_server_api_key
       
       # VPN Mode settings:
-      # Options: OPENVPN, WIREGUARD, or DUMPMODE
-      VPNMODE: OPENVPN                                  # Change to WIREGUARD or DUMPMODE as needed
+      # Options: SMARTMODE or DUMPMODE
+      # OPENVPN/WIREGUARD are accepted as aliases for backward compatibility
+      VPNMODE: SMARTMODE                                # Change to DUMPMODE if you want to skip TCP checks
+
+secrets:
+  gluetun_control_server_api_key:
+    file: ./secrets/gluetun_control_server_api_key

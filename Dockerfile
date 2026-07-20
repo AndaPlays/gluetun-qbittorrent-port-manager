@@ -17,16 +17,23 @@ ENV CHECK_INTERVAL=30
 ENV WAIT_TIMEOUT=60      
 # Interval (in seconds) between VPN status checks    
 ENV WAIT_INTERVAL=5          
+ENV CONTROL_SERVER_TIMEOUT=15
+ENV CONTROL_SERVER_RETRIES=3
+ENV CONTROL_SERVER_RETRY_DELAY=2
+ENV QBITTORRENT_TIMEOUT=15
 
 # Control Server URL (used by our script to query the forwarded port and VPN status)
-ENV CONTROL_SERVER_URL=http://localhost:8000
+ENV CONTROL_SERVER_URL=http://gluetun:8000
 
-# VPN mode (Options: OPENVPN, WIREGUARD, or DUMPMODE)
-ENV VPNMODE=OPENVPN
+# VPN mode (Options: SMARTMODE or DUMPMODE)
+ENV VPNMODE=SMARTMODE
 
 # Copy the start.sh script into the container and make it executable
 COPY ./start.sh /start.sh
-RUN chmod +x /start.sh
+COPY ./healthcheck.sh /healthcheck.sh
+RUN chmod +x /start.sh /healthcheck.sh
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 CMD ["/healthcheck.sh"]
 
 # Command to run the script
 CMD ["/start.sh"]
